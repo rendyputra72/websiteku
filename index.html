@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>INVENTARIS LAB RPL</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{
+--bg-dark1:#0f0c29;--bg-dark2:#1a1a2e;--bg-dark3:#16213e;
+--card-dark:rgba(255,255,255,0.05);
+--accent:#00f5ff;--text-dark:#ffffff;
+--glow:#00f5ff;
+}
+body{margin:0;font-family:'Poppins',sans-serif;transition:0.3s;background:linear-gradient(135deg,var(--bg-dark1),var(--bg-dark2),var(--bg-dark3));color:var(--text-dark);}
+.hidden{display:none;}
+.container{padding:20px;}
+input,select{width:100%;padding:10px;margin:8px 0;border:none;border-radius:20px;background:rgba(255,255,255,0.08);color:inherit;}
+input:focus,select:focus{outline:none;box-shadow:0 0 10px var(--glow);}
+button{padding:10px 20px;border:none;border-radius:20px;background:var(--accent);font-weight:600;cursor:pointer;margin:5px;box-shadow:0 0 10px var(--glow);}
+button:hover{transform:scale(1.05);box-shadow:0 0 25px var(--glow);}
+.card{background:var(--card-dark);padding:25px;border-radius:15px;backdrop-filter:blur(15px);box-shadow:0 0 20px rgba(0,0,0,0.5);}
+.sidebar{position:fixed;top:0;left:0;width:220px;height:100%;background:rgba(0,0,0,0.7);backdrop-filter:blur(10px);display:flex;flex-direction:column;padding:20px;pointer-events:auto;opacity:1;z-index:1;transition:all 0.3s;}
+.sidebar.hidden{opacity:0;pointer-events:none;}
+.sidebar h2{color:var(--accent);text-align:center;margin-bottom:20px;}
+.content{margin-left:240px;padding:20px;transition:margin-left 0.4s ease;}
+.content.hidden{display:none;}
+.toast{position:fixed;top:20px;right:20px;background:var(--accent);color:#000;padding:15px;border-radius:10px;box-shadow:0 0 15px var(--glow);opacity:0;transition:0.5s;}
+.toast.show{opacity:1;}
+table{width:100%;border-collapse:collapse;margin-top:15px;}
+th,td{padding:8px;text-align:center;border:1px solid #fff;}
+</style>
+</head>
+<body>
+
+<!-- Login Page -->
+<div id="loginPage" class="container">
+  <div class="card" style="max-width:400px;margin:auto;">
+    <h1>INVENTARIS LAB RPL</h1>
+    <h2>Login</h2>
+    <input type="text" id="loginUser" placeholder="Username">
+    <input type="password" id="loginPass" placeholder="Password">
+    <button onclick="login()">Login</button>
+    <p style="text-align:center;">Belum punya akun? <a href="#" onclick="showRegister()">Register</a></p>
+  </div>
+</div>
+
+<!-- Register Page -->
+<div id="registerPage" class="container hidden">
+  <div class="card" style="max-width:400px;margin:auto;">
+    <h2>Register</h2>
+    <input type="text" id="regUser" placeholder="Username">
+    <input type="password" id="regPass" placeholder="Password">
+    <select id="regLevel"><option value="user">User</option><option value="admin">Admin</option></select>
+    <button onclick="register()">Daftar</button>
+    <button onclick="showLogin()">Kembali</button>
+  </div>
+</div>
+
+<!-- Sidebar -->
+<div class="sidebar hidden" id="sidebar">
+  <h2>Dashboard</h2>
+  <button id="btnHome" onclick="showHome()">Home</button>
+  <button id="btnTambah" onclick="showTambah()">Tambah Barang</button>
+  <button id="btnLaporan" onclick="showLaporan()">Laporan</button>
+  <button id="btnPass" onclick="showGantiPass()">Ganti Password</button>
+  <button onclick="logout()">Logout</button>
+</div>
+
+<!-- Content -->
+<div class="content hidden" id="contentPage">
+  <div id="homePage">
+    <h1>Dashboard</h1>
+    <input type="text" id="searchInput" placeholder="Cari nama atau kode..." oninput="renderHome()">
+    <select id="filterKategori" onchange="renderHome()">
+      <option value="">Semua Kategori</option>
+      <option value="Elektronik">Elektronik</option>
+      <option value="Alat Tulis">Alat Tulis</option>
+      <option value="Buku">Buku</option>
+      <option value="Lainnya">Lainnya</option>
+    </select>
+    <div id="homeContent"></div>
+    <h2>Grafik Interaktif</h2>
+    <canvas id="chartBar"></canvas>
+    <canvas id="chartPie"></canvas>
+    <canvas id="chartLine"></canvas>
+  </div>
+
+  <div id="tambahPage" class="hidden">
+    <div class="card">
+      <h2>Tambah / Edit Barang</h2>
+      <input type="text" id="kode" placeholder="Kode Barang">
+      <input type="text" id="nama" placeholder="Nama Barang">
+      <input type="text" id="kondisi" placeholder="Kondisi">
+      <input type="number" id="jumlah" placeholder="Jumlah">
+      <select id="kategori">
+        <option value="">-- Pilih Kategori --</option>
+        <option value="Elektronik">Elektronik</option>
+        <option value="Alat Tulis">Alat Tulis</option>
+        <option value="Buku">Buku</option>
+        <option value="Lainnya">Lainnya</option>
+      </select>
+      <button onclick="simpanBarang()">Simpan</button>
+      <button onclick="showHome()">Kembali</button>
+    </div>
+  </div>
+
+  <div id="laporanPage" class="hidden">
+    <h2>Laporan Data Barang</h2>
+    <div id="laporanContent"></div>
+    <button onclick="exportExcel()">Export Excel</button>
+    <button onclick="exportPDF()">Export PDF</button>
+    <button onclick="window.print()">Cetak</button>
+    <button onclick="showHome()">Kembali</button>
+  </div>
+
+  <div id="gantiPassPage" class="hidden">
+    <div class="card">
+      <h2>Ganti Password</h2>
+      <input type="password" id="oldPass" placeholder="Password Lama">
+      <input type="password" id="newPass" placeholder="Password Baru">
+      <button onclick="gantiPass()">Simpan</button>
+      <button onclick="showHome()">Kembali</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+// ===== STORAGE =====
+let users = JSON.parse(localStorage.getItem("users")) || [];
+let barang = JSON.parse(localStorage.getItem("barang")) || [];
+let currentUser = null;
+let editIndex = -1;
+
+// ===== TOAST =====
+function showToast(msg){
+  let t=document.getElementById("toast");
+  t.textContent=msg;
+  t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"),2000);
+}
+
+// ===== LOGIN / REGISTER =====
+function showRegister(){loginPage.classList.add("hidden");registerPage.classList.remove("hidden");sidebar.classList.add("hidden");contentPage.classList.add("hidden");}
+function showLogin(){registerPage.classList.add("hidden");loginPage.classList.remove("hidden");sidebar.classList.add("hidden");contentPage.classList.add("hidden");}
+
+function login(){
+  let u=loginUser.value,p=loginPass.value;
+  let cek=users.find(x=>x.u===u && x.p===p);
+  if(cek){
+    currentUser=cek;
+    loginPage.classList.add("hidden");
+    registerPage.classList.add("hidden");
+    sidebar.classList.remove("hidden");
+    contentPage.classList.remove("hidden");
+    btnTambah.style.display=(cek.l==="admin")?"block":"none";
+    showHome();
+    showToast("Login sukses!");
+  } else showToast("Login gagal!");
+}
+
+function register(){
+  let u=regUser.value,p=regPass.value,l=regLevel.value;
+  users.push({u,p,l});
+  localStorage.setItem("users",JSON.stringify(users));
+  showLogin();
+  showToast("Register sukses!");
+}
+
+function logout(){
+  currentUser=null;
+  loginPage.classList.remove("hidden");
+  registerPage.classList.add("hidden");
+  sidebar.classList.add("hidden");
+  contentPage.classList.add("hidden");
+  showToast("Logout berhasil!");
+}
+
+// ===== PAGE CONTROL =====
+function toggleAll(show="homePage"){["homePage","tambahPage","laporanPage","gantiPassPage"].forEach(id=>document.getElementById(id).classList.add("hidden"));document.getElementById(show).classList.remove("hidden");}
+function showHome(){toggleAll(); renderHome();}
+function showTambah(){toggleAll("tambahPage");}
+function showLaporan(){toggleAll("laporanPage"); renderLaporan();}
+function showGantiPass(){toggleAll("gantiPassPage");}
+
+// ===== SIMPAN / EDIT / HAPUS =====
+function simpanBarang(){
+  if(currentUser.l!=="admin") return showToast("Hanya admin!");
+  let data={kode:kode.value,nama:nama.value,kondisi:kondisi.value,jumlah:Number(jumlah.value),kategori:kategori.value};
+  if(editIndex===-1){barang.push(data);} else {barang[editIndex]=data; editIndex=-1;}
+  localStorage.setItem("barang",JSON.stringify(barang));
+  renderHome();
+  showToast("Data disimpan!");
+}
+
+function renderHome(){
+  let search=document.getElementById("searchInput").value.toLowerCase();
+  let filter=document.getElementById("filterKategori").value;
+  let html="<table><tr><th>No</th><th>Kode</th><th>Nama</th><th>Kondisi</th><th>Jumlah</th><th>Kategori</th>";
+  if(currentUser.l==="admin") html+="<th>Aksi</th>"; html+="</tr>";
+  let filtered=barang.filter(b=>(b.nama.toLowerCase().includes(search)||b.kode.toLowerCase().includes(search))&&(filter===""||b.kategori===filter));
+  filtered.forEach((b,i)=>{
+    html+=`<tr><td>${i+1}</td><td>${b.kode}</td><td>${b.nama}</td><td>${b.kondisi}</td><td>${b.jumlah}</td><td>${b.kategori}</td>`;
+    if(currentUser.l==="admin") html+=`<td><button onclick="editBarang(${i})">Edit</button><button onclick="hapusBarang(${i})">Hapus</button></td>`;
+    html+="</tr>";
+  });
+  homeContent.innerHTML=html;
+  renderCharts();
+}
+
+function editBarang(i){editIndex=i;let b=barang[i];kode.value=b.kode;nama.value=b.nama;kondisi.value=b.kondisi;jumlah.value=b.jumlah;kategori.value=b.kategori;showTambah();}
+function hapusBarang(i){if(confirm("Hapus data?")){barang.splice(i,1);localStorage.setItem("barang",JSON.stringify(barang));renderHome();showToast("Data dihapus!");}}
+
+// ===== LAPORAN =====
+function renderLaporan(){renderHome();laporanContent.innerHTML=homeContent.innerHTML;}
+
+// ===== GANTI PASSWORD =====
+function gantiPass(){let oldP=oldPass.value,newP=newPass.value;if(oldP!==currentUser.p) return showToast("Password lama salah!");currentUser.p=newP;localStorage.setItem("users",JSON.stringify(users));showHome();showToast("Password berhasil diganti!");}
+
+// ===== CHART =====
+let chartBar, chartPie, chartLine;
+function renderCharts(){
+  let filtered=barang;
+  let labels=filtered.map(b=>b.nama);
+  let dataJumlah=filtered.map(b=>b.jumlah);
+  let kategoriSet=[...new Set(filtered.map(b=>b.kategori))];
+  let dataKategori=kategoriSet.map(k=>filtered.filter(b=>b.kategori===k).length);
+  if(chartBar) chartBar.destroy(); if(chartPie) chartPie.destroy(); if(chartLine) chartLine.destroy();
+  chartBar=new Chart(chartBar=document.getElementById("chartBar"),{type:"bar",data:{labels:labels,datasets:[{label:"Jumlah Barang",data:dataJumlah,backgroundColor:"#00f5ff"}]}});
+  chartPie=new Chart(chartPie=document.getElementById("chartPie"),{type:"pie",data:{labels:kategoriSet,datasets:[{label:"Kategori",data:dataKategori,backgroundColor:["#00f5ff","#ff4d4d","#4dff4d","#ffb84d"]}]}});
+  chartLine=new Chart(chartLine=document.getElementById("chartLine"),{type:"line",data:{labels:labels,datasets:[{label:"Jumlah Barang",data:dataJumlah,borderColor:"#00f5ff",fill:false}]},options:{animation:{duration:500}}});
+}
+
+// ===== EXPORT =====
+function exportExcel(){let ws=XLSX.utils.json_to_sheet(barang);let wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Barang");XLSX.writeFile(wb,"InventarisLabRPL.xlsx");showToast("Export Excel berhasil!");}
+function exportPDF(){const { jsPDF } = window.jspdf;let doc=new jsPDF();let y=10;barang.forEach((b,i)=>{doc.text(`${i+1}. ${b.kode} | ${b.nama} | ${b.kondisi} | ${b.jumlah} | ${b.kategori}`,10,y);y+=10;});doc.save("Laporan.pdf");showToast("Export PDF berhasil!");}
+</script>
+</body>
+</html>
